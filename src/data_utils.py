@@ -24,6 +24,26 @@ def split_train_dataset(df, sample_threshold, train_ratio, random_state):
     return train_df, validation_df
 
 
+def create_false_labels(df, label_name):
+    positive = df[['message', label_name]].copy()
+    positive['nli_label'] = 1
+    negative_pairs = []
+    label_unique = df[label_name].unique()
+    for i in range(positive.shape[0]):
+        message = positive.iloc[i]['message']
+        true_class = positive.iloc[i][label_name]
+        false_classes = [c for c in label_unique if c != true_class]
+        for false_class in false_classes:
+            negative_pairs.append({
+                'message': message,
+                label_name: false_class,
+                'nli_label': 0
+            })
+    negative = pd.DataFrame(negative_pairs)
+    final_df = pd.concat([positive, negative]).sample(frac=1).reset_index(drop=True)
+    return final_df
+
+
 
 
 
