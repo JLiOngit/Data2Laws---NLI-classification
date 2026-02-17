@@ -3,7 +3,7 @@ from sklearn.metrics import precision_recall_fscore_support, balanced_accuracy_s
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 
-def histogram_df(df):
+def histogram_label(df):
     label = (df.groupby('label').count().sort_values(by='message', ascending=False).reset_index())
     group = (df.groupby('group').count().sort_values(by='message', ascending=False).reset_index())
     fig, axes = plt.subplots(1, 2, figsize=(18, 12))
@@ -41,10 +41,10 @@ def plot_metrics(df, label):
     print(f"F1 macro: {f1_macro:.4f}")
     precision_cls, recall_cls, f1_cls, support_cls = precision_recall_fscore_support(label_true, predicted, labels=displayed_labels, average=None)
     print("\nClass Scores")
-    for lbl, p, r, f, s in zip(displayed_labels, precision_cls, recall_cls, f1_cls, support_cls):
-        print(f"Class: {lbl}")
-        print(f"Precision: {p:.4f}")
-        print(f"Recall: {r:.4f}")
-        print(f"F1-score: {f:.4f}")
-        print(f"Support: {s}")
+    for label, precision, recall, f1_score, support in zip(displayed_labels, precision_cls, recall_cls, f1_cls, support_cls):
+        print(f"Class: {label}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall: {recall:.4f}")
+        print(f"F1-score: {f1_score:.4f}")
+        print(f"Support: {support}")
         print('-' * 30)
