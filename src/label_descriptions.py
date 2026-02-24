@@ -27,3 +27,12 @@ GROUP_DESCRIPTIONS = pd.DataFrame([
     ["User", "user experience, usability, UI behavior"],
     ["Other", "documentation, project structure, general remarks"]
 ], columns=['group', 'group_description'])
+
+
+IMPROVED_GROUP_DESCRIPTIONS = pd.DataFrame([
+    ["CodeStyle", "formatting, naming, readability, structure, or stylistic consistency in the code."],
+    ["Discussion", "opening a discussion, ask for rationale, or suggest alternative approaches."],
+    ["Development", "addressing code correctness, bugs, edge cases, performance, or security issues."],
+    ["User", "user experience, usability, UI behavior, or user-facing outputs."],
+    ["Other", "comments that do not fit into other categories, such as documentation, project structure, or general remarks."]
+], columns=['group', 'group_description'])

@@ -8,16 +8,12 @@ from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassifica
 from datasets import Dataset, DatasetDict
 from peft import LoraConfig, get_peft_model, TaskType
 from sklearn.metrics import precision_recall_fscore_support, balanced_accuracy_score
-
 from .data_utils import *
-from .label_descriptions import GROUP_DESCRIPTIONS, LABEL_DESCRIPTIONS
 
 
-def get_description_df(label_name):
-    DESCRIPTION_MAP = {"group": GROUP_DESCRIPTIONS,
-                       "label": LABEL_DESCRIPTIONS}
+def get_description_df(label_name, description_map):
     try:
-        label_descriptions = DESCRIPTION_MAP[label_name]
+        label_descriptions = description_map[label_name]
     except KeyError:
         raise KeyError(f"The label'{label_name}' is not present in the columns of the description dataframe.")
     return label_descriptions
@@ -27,27 +23,33 @@ class ZeroShotClassifier:
 
     def __init__(self,
                  model_name,
+                 label_name,
+                 label_verbalization,
+                 description_map,
                  batch_size = 32,
                  multi_prediction = False,
                  template = "This GitHub comment is about {}."):
         self.model_name = model_name
+        self.label_name = label_name
+        self.label_verbalization = label_verbalization
+        self.description_map = description_map
         self.batch_size = batch_size
         self.multi_labels = multi_prediction
         self.template = template
         device = 0 if th.cuda.is_available() else -1
         self.classifier = pipeline('zero-shot-classification', model=model_name, device=device)
 
-    def classification(self, test_path, label_name = "group", label_verbalization=True):
+    def classification(self, test_path):
         test_df = pd.read_json(test_path, lines=True)
         test_dataset = Dataset.from_pandas(test_df)
         try:
-            candidate_labels = test_df[label_name].unique()
+            candidate_labels = test_df[self.label_name].unique()
         except KeyError:
-            raise KeyError(f"The label '{label_name}' is not present in the columns of the dataframe.")
-        if label_verbalization:
-            label_descriptions = get_description_df(label_name)
-            assert set(candidate_labels) == set(label_descriptions[label_name].unique())
-            candidate_labels = label_descriptions[label_name + '_description'].unique()
+            raise KeyError(f"The label '{self.label_name}' is not present in the columns of the dataframe.")
+        if self.label_verbalization:
+            label_descriptions = get_description_df(self.label_name, self.description_map)
+            assert set(candidate_labels) == set(label_descriptions[self.label_name].unique())
+            candidate_labels = label_descriptions[self.label_name + '_description'].unique()
         def collate_function(batch):
             messages = batch['message']
             predictions, scores = [], []
@@ -55,11 +57,11 @@ class ZeroShotClassifier:
                 result = self.classifier(message, candidate_labels=candidate_labels, multi_labels=self.multi_labels, hypothesis_template=self.template)
                 predicted_label = result['labels'][0]
                 score = result['scores'][0]
-                if label_verbalization:
-                    predicted_label = label_descriptions.loc[label_descriptions[label_name + '_description'] == predicted_label, label_name].iloc[0]
+                if self.label_verbalization:
+                    predicted_label = label_descriptions.loc[label_descriptions[self.label_name + '_description'] == predicted_label, self.label_name].iloc[0]
                 predictions.append(predicted_label)
                 scores.append(score)
-            return {'predicted_'+ label_name: predictions, 'scores': scores}
+            return {'predicted_'+ self.label_name: predictions, 'scores': scores}
         test_dataset = test_dataset.map(collate_function, batched=True, batch_size=self.batch_size)
         test_df = pd.DataFrame(test_dataset)
         return test_df
@@ -74,18 +76,32 @@ class SavePeftModelCallback(TrainerCallback):
         return control
 
 
+class WeightedTrainer(Trainer):
+
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        logits = outputs.logits
+        class_weights = th.tensor([1.0, 3.0], device=logits.device, dtype=logits.dtype)
+        loss_fct = th.nn.CrossEntropyLoss(weight=class_weights)
+        loss = loss_fct(logits, labels)
+        return (loss, outputs) if return_outputs else loss
+
+
 class NLI_FineTuner:
 
     def __init__(self,
                  model_name,
                  label_name,
                  label_verbalization,
+                 description_map,
                  config):
         self.config = config
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = self.lora_model(model_name)
         self.label_name = label_name
         self.label_verbalization = label_verbalization
+        self.description_map = description_map
         self.data_collator = DataCollatorWithPadding(self.tokenizer)
 
     def lora_model(self, model_name):
@@ -119,7 +135,7 @@ class NLI_FineTuner:
                                   self.label_name: false_class,
                                   'labels': 0}
                 if self.label_verbalization:
-                    label_descriptions = get_description_df(self.label_name)
+                    label_descriptions = get_description_df(self.label_name, self.description_map)
                     negative_label[self.label_name + '_description'] = label_descriptions.loc[label_descriptions[self.label_name] == false_class,self.label_name + '_description'].iloc[0]
                 negative_pairs.append(negative_label)
         negative = pd.DataFrame(negative_pairs)
@@ -129,7 +145,7 @@ class NLI_FineTuner:
     def preprocess(self, train_df, test_df):
         # switch to label descriptions
         if self.label_verbalization:
-            label_descriptions = get_description_df(self.label_name)
+            label_descriptions = get_description_df(self.label_name, self.description_map)
             train_df = pd.merge(train_df, label_descriptions, on=self.label_name, how='inner')
             test_df = pd.merge(test_df, label_descriptions, on=self.label_name, how='inner')
         # split the train dataset into train / validation
@@ -170,20 +186,19 @@ class NLI_FineTuner:
             per_device_train_batch_size = 8,
             gradient_accumulation_steps = self.config.BATCH_SIZE // 8,
             per_device_eval_batch_size = 8,
-            learning_rate = self.config.LEARNING_RATE,
             weight_decay = self.config.WEIGHT_DECAY,
             logging_steps = 100,
             eval_strategy = 'steps',
-            eval_steps = 300,
+            eval_steps = 250,
             save_strategy = 'steps',
-            save_steps = 300,
+            save_steps = 250,
             save_total_limit=1,
             metric_for_best_model = 'f1',
             load_best_model_at_end = True,
             fp16 = False
         )
         # define the trainer
-        trainer = Trainer(
+        trainer = WeightedTrainer(
             model = self.model,
             args = train_arguments,
             train_dataset = train_dataset,
@@ -206,13 +221,13 @@ class NLI_FineTuner:
         trainer.train(resume_from_checkpoint=checkpoint)
         return trainer.evaluate()
     
-    def compute_nli_metrics(self, test_dataset):
+    def compute_nli_metrics(self, test_dataset, output_dir):
         test_df = pd.DataFrame(test_dataset)
-        test_df = test_df.query('nli_label == 1  | predicted_label == 1')
+        test_df = test_df.query('labels == 1  | predicted_labels == 1')
         # created TP, FP, FN columns
-        test_df['TP'] = ((test_df['nli_label'] == 1) & (test_df['predicted_nli_label'] == 1)).astype(int)
-        test_df['FP'] = ((test_df['nli_label'] == 0) & (test_df['predicted_nli_label'] == 1)).astype(int)
-        test_df['FN'] = ((test_df['nli_label'] == 1) & (test_df['predicted_nli_label'] == 0)).astype(int)
+        test_df['TP'] = ((test_df['labels'] == 1) & (test_df['predicted_labels'] == 1)).astype(int)
+        test_df['FP'] = ((test_df['labels'] == 0) & (test_df['predicted_labels'] == 1)).astype(int)
+        test_df['FN'] = ((test_df['labels'] == 1) & (test_df['predicted_labels'] == 0)).astype(int)
         # aggregated per label
         aggregated_df = test_df.groupby(self.label_name)[['TP', 'FP', 'FN']].sum()
         # calculted metrics for each label
@@ -222,7 +237,7 @@ class NLI_FineTuner:
         aggregated_df = aggregated_df.fillna(0)
         # displayed and stored the results
         results = {}
-        print("\nClass Scores")
+        print("Class Scores")
         for label, row in aggregated_df.iterrows():
             results[label] = {"precision": float(row['precision']),
                                             "recall": float(row['recall']),
@@ -238,24 +253,27 @@ class NLI_FineTuner:
         results["macro"] = {"precision": float(precision_macro),
                             "recall": float(recall_macro),
                             "f1": float(f1_macro)}
+        print("\nMacro Scores")
+        print(f"Precision: {results["macro"]['precision']:.4f}")
+        print(f"Recall: {results["macro"]['recall']:.4f}")
+        print(f"F1-score: {results["macro"]['f1']:.4f}")
         # saved into a json file
-        with open("./test_results.json", "w", encoding="utf-8") as f:
+        with open(os.path.join(output_dir, f"{self.label_name}.json"), "w", encoding="utf-8") as f:
             json.dump(results, f, indent=4, ensure_ascii=False)
         return results
 
     
-    def predict(self, test_dataset):
+    def predict(self, test_dataset, output_dir):
         trainer = Trainer(
             model=self.model,
-            args=TrainingArguments(output_dir="./test_results", per_device_eval_batch_size=16),
-            tokenizer=self.tokenizer,
+            args=TrainingArguments(output_dir=output_dir, per_device_eval_batch_size=16),
             data_collator=self.data_collator,
             compute_metrics=self.compute_metrics
         )
         outputs = trainer.predict(test_dataset)
         prediction = np.argmax(outputs.predictions, axis=-1)
-        test_dataset = test_dataset.add_column("predicted_nli_label", prediction)
-        self.compute_nli_metrics(test_dataset)
+        test_dataset = test_dataset.add_column("predicted_labels", prediction)
+        self.compute_nli_metrics(test_dataset, output_dir)
 
 
     

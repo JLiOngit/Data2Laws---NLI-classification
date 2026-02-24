@@ -9,6 +9,7 @@ class FineTuning_Config:
     SAMPLE_THRESHOLD : int = 800
     TRAINING_RATIO : float = 0.9
     RANDOM_STATE : int = 0
+    # 
     # NLI labels mapping
     ID2LABEL = {0: "CONTRADICTION", 1: "ENTAILMENT"}
     LABEL2ID = {"CONTRADICTION":0, "ENTAILMENT": 1}
