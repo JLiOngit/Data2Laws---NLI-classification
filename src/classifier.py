@@ -274,18 +274,3 @@ class NLI_FineTuner:
         prediction = np.argmax(outputs.predictions, axis=-1)
         test_dataset = test_dataset.add_column("predicted_labels", prediction)
         self.compute_nli_metrics(test_dataset, output_dir)
-
-
-    
-    
-
-
-
-
-    
-
-
-    
-
-
-    
