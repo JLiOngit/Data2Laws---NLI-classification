@@ -39,9 +39,43 @@ This project evaluates how these advantages apply to analyzing **interactions in
 3. **Fine‑tuning performance**  
    The models were fine‑tuned on the training and validation sets derived from the interaction dataset to measure how much performance improves when models are adapted specifically to the collaborative interaction domain.
 
+# **Installation**
+
+```bash
+# Clone the repository
+git clone https://github.com/JLiOngit/Data2Laws---NLI-classification.git
+cd Data2Laws---NLI-classification
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+# **Running**
+
+## Zero-Shot Classification
+
+No training required. Runs directly on the test set using a pre-trained NLI model. Available via `notebook.ipynb`.
+
+## Fine-Tuning
+
+This approach adapts a pre-trained NLI model to the task through supervised fine-tuning on the training set. Training hyperparameters are configured in `src/config.py`, and dataset paths (`TRAIN_PATH`, `TEST_PATH`) can either be set there or overridden at runtime via CLI arguments.
+
+```bash
+python -m src.main [OPTIONS]
+```
+
+### Arguments
+
+| Argument | Type | Default | Description |
+|---|---|---|---|
+| `--model` | `str` | `deberta_large` | Model to fine-tune (see table below) |
+| `--label_name` | `str` | `group` | Target label column (`group` or `label`) |
+| `--label_verbalization` | `bool` | `True` | Use natural language label descriptions |
+| `--train_path` | `str` | *(from config)* | Path to the training `.jsonl` file |
+| `--test_path` | `str` | *(from config)* | Path to the test `.jsonl` file |
 
 
-# **Results**
+# **Analysis**
 The results of the experiments are described in the article [*"Transformer les interactions utilisateurs en taxonomie grâce au Natural Language Inference (NLI)"*.](https://data2laws.wp.imt.fr/2026/02/16/transformer-les-interactions-utilisateurs-en-taxonomie-grace-au-natural-language-inference-nli/) and have also been summarized in a poster, as part of the final delivery of the **Research Project course project**..
 
 # **References**
