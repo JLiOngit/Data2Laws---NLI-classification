@@ -68,7 +68,7 @@ python -m src.main [OPTIONS]
 
 | Argument | Type | Default | Description |
 |---|---|---|---|
-| `--model` | `str` | `deberta_large` | Model to fine-tune (see table below) |
+| `--model` | `str` | `deberta_large` | Model to fine-tune |
 | `--label_name` | `str` | `group` | Target label column (`group` or `label`) |
 | `--label_verbalization` | `bool` | `True` | Use natural language label descriptions |
 | `--train_path` | `str` | *(from config)* | Path to the training `.jsonl` file |
