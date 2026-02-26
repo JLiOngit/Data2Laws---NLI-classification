@@ -78,11 +78,15 @@ class SavePeftModelCallback(TrainerCallback):
 
 class WeightedTrainer(Trainer):
 
+    def __init__(self, num_labels, **kwargs):
+        super().__init__(**kwargs)
+        self.num_labels = num_labels
+
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         labels = inputs.pop("labels")
         outputs = model(**inputs)
         logits = outputs.logits
-        class_weights = th.tensor([1.0, 3.0], device=logits.device, dtype=logits.dtype)
+        class_weights = th.tensor([1.0, float(self.num_labels)], device=logits.device, dtype=logits.dtype)
         loss_fct = th.nn.CrossEntropyLoss(weight=class_weights)
         loss = loss_fct(logits, labels)
         return (loss, outputs) if return_outputs else loss
@@ -197,8 +201,9 @@ class NLI_FineTuner:
             load_best_model_at_end = True,
             fp16 = False
         )
-        # define the trainer
+        num_labels = len(np.unique(train_dataset[self.label_name]))
         trainer = WeightedTrainer(
+            num_labels = num_labels,
             model = self.model,
             args = train_arguments,
             train_dataset = train_dataset,
