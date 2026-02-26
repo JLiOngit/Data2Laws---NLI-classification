@@ -1,6 +1,6 @@
 # **Project Overview**
 
-This repository provides the implemented code for the **Research Project**, as part of the **MEng in Computer Science course program at IMT Atlantique** and also the **Data2Laws research initiative**.
+This repository provides the implemented code for the **Research Project**, as part of the **MEng in Computer Science course program at IMT Atlantique** and also the [*"Data2Laws"*.](https://data2laws.wp.imt.fr/2026/02/16/transformer-les-interactions-utilisateurs-en-taxonomie-grace-au-natural-language-inference-nli/) **research initiative**.
 
 More specifically, it explores the use of **Natural Language Inference (NLI)** to analyze collaboration between users by **classifying interactions into a useful taxonomy**, providing **structured insights into community dynamics**.
 
