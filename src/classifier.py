@@ -54,7 +54,7 @@ class ZeroShotClassifier:
             messages = batch['message']
             predictions, scores = [], []
             for message in messages:
-                result = self.classifier(message, candidate_labels=candidate_labels, multi_labels=self.multi_labels, hypothesis_template=self.template)
+                result = self.classifier(message, candidate_labels=candidate_labels, multi_label=self.multi_labels, hypothesis_template=self.template)
                 predicted_label = result['labels'][0]
                 score = result['scores'][0]
                 if self.label_verbalization:
@@ -123,8 +123,8 @@ class NLI_FineTuner:
         return model
     
     def create_false_labels(self, df, num_negative_samples = None):
-        colummns = ['message', self.label_name, self.label_name + '_description'] if self.label_verbalization else  ['message', self.label_name]
-        positive = df[colummns].copy()
+        columns = ['message', self.label_name, self.label_name + '_description'] if self.label_verbalization else  ['message', self.label_name]
+        positive = df[columns].copy()
         positive['labels'] = 1
         negative_pairs = []
         label_unique = df[self.label_name].unique()
@@ -153,7 +153,7 @@ class NLI_FineTuner:
             train_df = pd.merge(train_df, label_descriptions, on=self.label_name, how='inner')
             test_df = pd.merge(test_df, label_descriptions, on=self.label_name, how='inner')
         # split the train dataset into train / validation
-        train_df, validation_df = split_train_dataset(train_df, self.config.SAMPLE_THRESHOLD, self.config.TRAINING_RATIO, self.config.RANDOM_STATE)
+        train_df, validation_df = split_train_dataset(train_df, self.label_name, self.config.SAMPLE_THRESHOLD, self.config.TRAINING_RATIO, self.config.RANDOM_STATE)
         # create false labels to carry out nli classification
         nli_train_df = self.create_false_labels(train_df)
         nli_validation_df = self.create_false_labels(validation_df)
@@ -190,6 +190,7 @@ class NLI_FineTuner:
             per_device_train_batch_size = 8,
             gradient_accumulation_steps = self.config.BATCH_SIZE // 8,
             per_device_eval_batch_size = 8,
+            learning_rate = self.config.LEARNING_RATE,
             weight_decay = self.config.WEIGHT_DECAY,
             logging_steps = 100,
             eval_strategy = 'steps',

@@ -10,10 +10,10 @@ def load_data(train_path, test_path, useful_columns=True):
     return train_df, test_df
 
 
-def split_train_dataset(df, sample_threshold, train_ratio, random_state):
+def split_train_dataset(df, label_name, sample_threshold, train_ratio, random_state):
     train_set, validation_set = [], []
-    for label in df['label'].unique():
-        df_label = df[df['label'] == label]
+    for label in df[label_name].unique():
+        df_label = df[df[label_name] == label]
         n_samples = min(df_label.shape[0], sample_threshold)
         df_sample = df_label.sample(n_samples, random_state=random_state)
         n_train = int(n_samples * train_ratio)

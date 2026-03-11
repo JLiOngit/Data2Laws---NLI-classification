@@ -6,7 +6,7 @@ class FineTuning_Config:
     TRAIN_PATH = "code_review_comments/crc_train.jsonl"
     TEST_PATH = "code_review_comments/crc_test.jsonl"
     # split the dataset into train/validation
-    SAMPLE_THRESHOLD : int = 800
+    SAMPLE_THRESHOLD : int = 1000
     TRAINING_RATIO : float = 0.9
     RANDOM_STATE : int = 0
     # 
