@@ -15,7 +15,7 @@ LABEL_DESCRIPTIONS = pd.DataFrame([
     ["Error", "exception and error handling problems"],
     ["Documentation", "documentation or source code comments"],
     ["Support", "compatibility with other systems"],
-    ["Input/Output", "GUI input/output, pop-up windows"],
+    ["InputOutput", "GUI input/output, pop-up windows"],
     ["Other", "comments without semantic context"],
 ], columns=['label', 'label_description'])
 

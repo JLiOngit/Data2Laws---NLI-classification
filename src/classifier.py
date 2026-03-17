@@ -86,7 +86,7 @@ class WeightedTrainer(Trainer):
         labels = inputs.pop("labels")
         outputs = model(**inputs)
         logits = outputs.logits
-        class_weights = th.tensor([1.0, float(self.num_labels)], device=logits.device, dtype=logits.dtype)
+        class_weights = th.tensor([1.0, float(self.num_labels-1)], device=logits.device, dtype=logits.dtype)
         loss_fct = th.nn.CrossEntropyLoss(weight=class_weights)
         loss = loss_fct(logits, labels)
         return (loss, outputs) if return_outputs else loss
